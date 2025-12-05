@@ -1,0 +1,2 @@
+Este es el archivo 2 dentro de subcarpeta 1
+Generado automáticamente para pruebas.
