@@ -1,0 +1,11 @@
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+    <dependency>
+        <groupId>com.github.Guiiiiiiiiiiiiiiiiiilllllleeeee</groupId>
+        <artifactId>Encripter-java</artifactId>
+        <version>Tag</version>
+    </dependency>
+</repositories>
