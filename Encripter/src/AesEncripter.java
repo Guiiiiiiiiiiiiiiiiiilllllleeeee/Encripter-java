@@ -89,6 +89,55 @@ public class AesEncripter extends Encripter {
         this.iv = "default_iv_1234";
     }
 
+    /**
+     * Verifica si una ruta es peligrosa (directorios del sistema o raíz)
+     * @param path Path a verificar
+     * @return true si es una ruta peligrosa, false si es segura
+     */
+    private boolean isDangerousPath(Path path) {
+        try {
+            // Obtener la ruta absoluta normalizada
+            Path absolutePath = path.toAbsolutePath().normalize();
+            String pathString = absolutePath.toString().toLowerCase();
+
+            // Lista de rutas peligrosas en Windows
+            String[] dangerousPaths = {
+                "c:\\",
+                "c:\\windows",
+                "c:\\program files",
+                "c:\\program files (x86)",
+                "c:\\programdata",
+                "c:\\users\\default",
+                "c:\\users\\public",
+                "c:\\system",
+                "c:\\$recycle.bin"
+            };
+
+            // Verificar si la ruta es exactamente una raíz de unidad (C:\, D:\, etc.)
+            if (pathString.matches("^[a-z]:\\\\$")) {
+                return true;
+            }
+
+            // Verificar si la ruta empieza con alguna de las rutas peligrosas
+            for (String dangerous : dangerousPaths) {
+                if (pathString.equals(dangerous) || pathString.startsWith(dangerous + "\\")) {
+                    return true;
+                }
+            }
+
+            // Verificar si tiene menos de 2 niveles de profundidad desde la raíz (muy cerca de C:\)
+            int depth = absolutePath.getNameCount();
+            if (depth <= 1) {
+                return true;
+            }
+
+            return false;
+        } catch (Exception e) {
+            // Si hay error, mejor considerarlo peligroso por seguridad
+            System.err.println("Error al validar ruta: " + e.getMessage());
+            return true;
+        }
+    }
 
     /**
      * Desencripta una carpeta recursivamente
@@ -102,12 +151,34 @@ public class AesEncripter extends Encripter {
             return false;
         }
 
+        // Validar que no sea una ruta peligrosa del sistema
+        if (isDangerousPath(path)) {
+            System.err.println("ERROR: No se permite desencriptar directorios del sistema o raíz: " + path);
+            System.err.println("Por seguridad, solo puedes desencriptar carpetas específicas, no directorios raíz o del sistema.");
+            return false;
+        }
+
+        // Verificar permisos de escritura
+        if (!Files.isWritable(path)) {
+            System.err.println("ERROR: No tienes permisos de escritura en: " + path);
+            return false;
+        }
+
         boolean success = true;
         try (Stream<Path> paths = Files.walk(path)) {
             paths.filter(Files::isRegularFile).forEach(filePath -> {
-                System.out.println("Desencriptando archivo: " + filePath);
-                if (!decryptFile(filePath)) {
-                    System.err.println("Falló la desencriptación de: " + filePath);
+                try {
+                    // Verificar que el archivo sea accesible y escribible
+                    if (Files.isWritable(filePath)) {
+                        System.out.println("Desencriptando archivo: " + filePath);
+                        if (!decryptFile(filePath)) {
+                            System.err.println("Falló la desencriptación de: " + filePath);
+                        }
+                    } else {
+                        System.err.println("Saltando archivo sin permisos: " + filePath);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error al verificar archivo " + filePath + ": " + e.getMessage());
                 }
             });
             System.out.println("Carpeta desencriptada exitosamente: " + path);
@@ -132,12 +203,34 @@ public class AesEncripter extends Encripter {
             return false;
         }
 
+        // Validar que no sea una ruta peligrosa del sistema
+        if (isDangerousPath(path)) {
+            System.err.println("ERROR: No se permite encriptar directorios del sistema o raíz: " + path);
+            System.err.println("Por seguridad, solo puedes encriptar carpetas específicas, no directorios raíz o del sistema.");
+            return false;
+        }
+
+        // Verificar permisos de escritura
+        if (!Files.isWritable(path)) {
+            System.err.println("ERROR: No tienes permisos de escritura en: " + path);
+            return false;
+        }
+
         boolean success = true;
         try (Stream<Path> paths = Files.walk(path)) {
             paths.filter(Files::isRegularFile).forEach(filePath -> {
-                System.out.println("Encriptando archivo: " + filePath);
-                if (!encryptFile(filePath)) {
-                    System.err.println("Falló la encriptación de: " + filePath);
+                try {
+                    // Verificar que el archivo sea accesible y escribible
+                    if (Files.isWritable(filePath)) {
+                        System.out.println("Encriptando archivo: " + filePath);
+                        if (!encryptFile(filePath)) {
+                            System.err.println("Falló la encriptación de: " + filePath);
+                        }
+                    } else {
+                        System.err.println("Saltando archivo sin permisos: " + filePath);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error al verificar archivo " + filePath + ": " + e.getMessage());
                 }
             });
             System.out.println("Carpeta encriptada exitosamente: " + path);
